@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload - Música</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-image: url('https://zero-two.info/uploads/images/file-1750347572365-335659848.jpeg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: white;
+    }
+
+    .rgb-border {
+      animation: rgb-animation 5s linear infinite;
+      border-width: 2px;
+    }
+
+    @keyframes rgb-animation {
+      0%   { border-color: #FF00FF; }
+      20%  { border-color: #AA00FF; }
+      40%  { border-color: #7700FF; }
+      60%  { border-color: #4400FF; }
+      80%  { border-color: #2200FF; }
+      100% { border-color: #FF00FF; }
+    }
+
+    #reprodutor {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      padding: 10px;
+      text-align: center;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    @keyframes fade-in {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.4s ease-out;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mx-auto px-4 py-10">
+    <h1 class="text-4xl font-bold text-center mb-8 drop-shadow-lg"></h1>
+
+    <div class="rgb-border p-6 rounded-lg bg-black bg-opacity-40">
+      <label for="pesquisa" class="block text-lg font-semibold mb-3">Encontre sua Música:</label>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <input type="text" id="pesquisa"
+          class="flex-1 p-3 rounded text-black focus:ring-2 focus:ring-purple-500 outline-none"
+          placeholder="Digite o nome da música ou artista">
+        <button onclick="pesquisarMusica()"
+          class="bg-purple-600 hover:bg-purple-700 transition text-white font-bold py-3 px-6 rounded shadow">Pesquisar</button>
+      </div>
+    </div>
+
+    <div id="resultados" class="mt-10 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Resultados vão aqui -->
+    </div>
+  </div>
+
+  <!-- Player embutido (vídeo + áudio) -->
+  <div id="reprodutor" class="hidden flex flex-col items-center justify-center">
+    <div class="w-full max-w-3xl flex justify-end mb-2">
+      <button onclick="fecharReprodutor()" class="text-white bg-red-600 hover:bg-red-700 px-4 py-1 rounded-full font-semibold shadow">
+        ✖ Fechar
+      </button>
+    </div>
+    <div id="videoPlayer" class="w-full max-w-3xl aspect-video mb-3">
+      <!-- iframe será injetado aqui -->
+    </div>
+    <audio id="audioPlayer" controls class="w-full max-w-3xl"></audio>
+  </div>
+
+  <!-- Notificação flutuante -->
+  <div id="notificacao" class="hidden fixed bottom-6 right-6 bg-purple-600 text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in transition-all duration-300 z-[9999]">
+    <span class="text-2xl">🎶</span>
+    <span id="notificacao-texto" class="text-sm font-semibold">A música está sendo baixada!</span>
+  </div>
+
+  <script>
+    async function pesquisarMusica() {
+      const pesquisa = document.getElementById('pesquisa').value;
+      const apiKey = 'dantes15s';
+      const apiUrl = `https://nodz-apis.com.br/api/pesquisas/youtube?query=${encodeURIComponent(pesquisa)}&apiKey=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+
+        if (data.status && data.resultado) {
+          exibirResultados(data.resultado);
+        } else {
+          document.getElementById('resultados').innerHTML = '<p class="text-center col-span-full">Nenhum resultado encontrado.</p>';
+        }
+      } catch (error) {
+        console.error('Erro ao buscar músicas:', error);
+        document.getElementById('resultados').innerHTML = '<p class="text-center col-span-full">Erro ao buscar músicas.</p>';
+      }
+    }
+
+    function exibirResultados(resultado) {
+      const resultadosDiv = document.getElementById('resultados');
+      resultadosDiv.innerHTML = '';
+
+      const div = document.createElement('div');
+      div.className = 'bg-black bg-opacity-40 p-4 rounded-lg shadow-lg border rgb-border';
+
+      const videoId = resultado.url.includes("v=") ? resultado.url.split('v=')[1].split('&')[0] : resultado.url.split('/').pop();
+      const downloadUrl = `https://nodz-apis.com.br/api/downloads/youtube/audio?url=https://youtu.be/${videoId}?si=hPlD3gl1v6ckAgsE&apiKey=dantes15s`;
+
+      div.innerHTML = `
+        <img src="${resultado.imagem}" alt="${resultado.titulo}"
+             class="w-full h-48 object-cover rounded-md hover:scale-105 transition cursor-pointer"
+             onclick="reproduzirMusica('${videoId}')">
+        <h2 class="text-xl font-semibold mt-3">${resultado.titulo}</h2>
+        <p class="text-gray-300">${resultado.canal}</p>
+        <p class="text-gray-400 text-sm">${resultado.views} views • ${resultado.duracao}</p>
+
+        <a href="${downloadUrl}" download onclick="mostrarNotificacao('🎶 A música está sendo baixada!')"
+          class="mt-4 inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white font-bold py-2 px-5 rounded-full shadow-lg transition duration-300 ease-in-out">
+           Baixar Música
+        </a>
+      `;
+
+      resultadosDiv.appendChild(div);
+    }
+
+    function reproduzirMusica(videoId) {
+      const iframe = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" 
+                      frameborder="0" allow="autoplay; encrypted-media" allowfullscreen
+                      class="rounded-lg shadow-md"></iframe>`;
+
+      document.getElementById('videoPlayer').innerHTML = iframe;
+
+      const audioPlayer = document.getElementById('audioPlayer');
+      audioPlayer.src = `https://nodz-apis.com.br/api/downloads/youtube/audio?url=https://youtu.be/${videoId}?si=hPlD3gl1v6ckAgsE&apiKey=dantes15s`;
+      audioPlayer.autoplay = true;
+
+      document.getElementById('reprodutor').classList.remove('hidden');
+    }
+
+    function fecharReprodutor() {
+      document.getElementById('reprodutor').classList.add('hidden');
+      document.getElementById('videoPlayer').innerHTML = '';
+      document.getElementById('audioPlayer').pause();
+      document.getElementById('audioPlayer').src = '';
+    }
+
+    function mostrarNotificacao(texto) {
+      const card = document.getElementById('notificacao');
+      const spanTexto = document.getElementById('notificacao-texto');
+      spanTexto.innerText = texto;
+
+      card.classList.remove('hidden');
+      card.classList.add('flex');
+
+      setTimeout(() => {
+        card.classList.add('hidden');
+        card.classList.remove('flex');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
